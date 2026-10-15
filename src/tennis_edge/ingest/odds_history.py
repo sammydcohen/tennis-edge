@@ -53,4 +53,7 @@ def load(tour: str, years: range, refresh: bool = False) -> pd.DataFrame:
     odds["Date"] = pd.to_datetime(odds["Date"], errors="coerce")
     odds = odds.rename(columns={"Best of": "best_of"})
     odds.columns = [c.lower() for c in odds.columns]
+    for c in ("b365w", "b365l", "psw", "psl", "maxw", "maxl", "avgw", "avgl"):
+        if c in odds:
+            odds[c] = pd.to_numeric(odds[c], errors="coerce")  # some files use "-" for missing
     return odds.dropna(subset=["date", "winner", "loser"]).reset_index(drop=True)

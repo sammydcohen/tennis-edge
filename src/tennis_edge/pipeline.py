@@ -17,14 +17,15 @@ from tennis_edge.eval.metrics import accuracy, brier, log_loss, symmetric
 from tennis_edge.features.elo import EloParams, compute_elo
 from tennis_edge.features.form import compute_form
 from tennis_edge.features.serve_return import compute_serve_return
-from tennis_edge.ingest import odds_history, sackmann
+from tennis_edge.ingest import odds_history, odds_kaggle, sackmann
 from tennis_edge.models.gbm import walk_forward
 from tennis_edge.models.tune_elo import PARAMS_PATH
 
-ODDS_COLS = ["psw", "psl", "b365w", "b365l", "maxw", "maxl", "avgw", "avgl"]
+ODDS_COLS = ["psw", "psl", "b365w", "b365l", "maxw", "maxl", "avgw", "avgl", "oddw", "oddl"]
 MODELS = {"Elo": "p_elo_winner", "Serve/return (calibrated)": "p_markov_cal_winner",
           "LightGBM": "p_gbm_winner"}
-BOOKS = {"Pinnacle": ("psw", "psl"), "Bet365": ("b365w", "b365l"), "Best price": ("maxw", "maxl")}
+BOOKS = {"Pinnacle": ("psw", "psl"), "Bet365": ("b365w", "b365l"), "Best price": ("maxw", "maxl"),
+         "Kaggle odds": ("oddw", "oddl")}
 
 
 def build(tour: str, start: int, end: int, burn_in: int = 1990) -> pd.DataFrame:
@@ -38,6 +39,8 @@ def build(tour: str, start: int, end: int, burn_in: int = 1990) -> pd.DataFrame:
     matches = matches[matches["tourney_date"].dt.year >= start].reset_index(drop=True)
 
     odds = odds_history.load(tour, range(max(start, 2001), end + 1))
+    if odds.empty and tour == "wta":
+        odds = odds_kaggle.load(range(start, end + 1))
     if odds.empty:
         print("No odds files available - see ingest/odds_history.py for manual download.")
         joined = matches.assign(odds_matched=False, match_date=pd.NaT,
@@ -61,12 +64,14 @@ def evaluate(df: pd.DataFrame, test_years: range) -> None:
         p, y = symmetric(test[col])
         print(f"  {name:<26} log loss {log_loss(p, y):.4f}  acc {accuracy(p, y):.3f}")
 
-    odds = test.dropna(subset=["psw", "psl"])
-    odds = odds[(odds["psw"] > 1) & (odds["psl"] > 1)]
-    print(f"\n{len(odds):,} matches with Pinnacle odds "
+    books = {k: v for k, v in BOOKS.items() if v[0] in test and test[v[0]].notna().any()}
+    ref_name, (rw, rl) = next(iter(books.items()))  # sharpest book available
+    odds = test.dropna(subset=[rw, rl])
+    odds = odds[(odds[rw] > 1) & (odds[rl] > 1)]
+    print(f"\n{len(odds):,} matches with {ref_name} odds "
           f"({test['odds_matched'].mean():.1%} of test matches joined to odds)")
-    pm, ym = symmetric(proportional(odds["psw"], odds["psl"]))
-    print(f"  {'Pinnacle (margin removed)':<26} log loss {log_loss(pm, ym):.4f}  "
+    pm, ym = symmetric(proportional(odds[rw], odds[rl]))
+    print(f"  {ref_name + ' (margin removed)':<26} log loss {log_loss(pm, ym):.4f}  "
           f"brier {brier(pm, ym):.4f}")
     for name, col in MODELS.items():
         p, y = symmetric(odds[col])
@@ -74,7 +79,7 @@ def evaluate(df: pd.DataFrame, test_years: range) -> None:
 
     print("\nBacktests (bet when model edge over fair price > 3%):")
     for name, col in MODELS.items():
-        for book, (w, l) in BOOKS.items():
+        for book, (w, l) in books.items():
             res = backtest.run(test.assign(p_model=test[col]), w, l)
             print(f"  {name:<26} vs {book:<10} {res.summary()}")
 

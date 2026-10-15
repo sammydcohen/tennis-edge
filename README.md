@@ -39,6 +39,51 @@ The strategy bets whenever the model's probability is more than 3 points above t
 
 **The bigger the claimed edge, the bigger the loss.** For LightGBM against Pinnacle, bets with a 0–3% edge return +0.5%, while bets with an edge above 15% return −9.8%. Large disagreements with the market usually mean the market knows something the model can't see, such as injuries, withdrawals or motivation.
 
+### WTA (2020–2025, 11,812 matches with odds)
+
+WTA odds come from a Kaggle dataset with a single, unlabeled bookmaker (probably Bet365).
+
+| Model | Log loss | Accuracy | Backtest ROI (edge > 3%) |
+|---|---|---|---|
+| Tuned Elo | 0.6147 | 64.8% | −7.2% (−9.9, −4.6) |
+| Serve/return (calibrated) | 0.6129 | 65.2% | −5.9% (−8.7, −3.2) |
+| LightGBM | 0.6037 | 66.6% | −6.4% (−9.0, −3.8) |
+| **Bookmaker (margin removed)** | **0.5846** | — | — |
+
+The pattern is the same as ATP: LightGBM is the best model, and the market is still clearly better.
+
+### Searching for a niche edge
+
+An edge might exist only in part of the market, but searching many slices is guaranteed to turn up false winners. To control for that, the search (`eval/segments.py`) splits time:
+
+1. **Discovery, 2020–2022:** every combination of model × bookmaker × condition × edge band is scored. Conditions include tournament level, surface, round, favourite/underdog, odds range, players back from layoffs, inexperienced players, and the fresher player within an event.
+2. **Validation, 2023–2025:** only the segments that were profitable in discovery, with at least 150 bets, are scored again on years the search never saw.
+
+| | Count |
+|---|---|
+| Segments tried (ATP + WTA) | 666 |
+| Profitable in discovery | 170 |
+| Still profitable in validation | 38 |
+| Validation 95% CI entirely above zero | **0** |
+
+The discovered "winners" averaged **−4.1%** in validation, about the same as betting on everything. That's what selection by luck looks like.
+
+**One recurring pattern, tested on unseen 2026 data.** The serve/return model at a 6–10% edge on ATP looked profitable across many slices. It was spotted while exploring the full 2020–2025 data, so the split above isn't a clean test of it. Instead it was stated in advance and tested on January–March 2026, which no model or analysis had used. Pinnacle odds are missing from most of the 2026 file, so the margin-free market average serves as the reference price in both periods:
+
+| Period | Bets | ROI at market average | ROI at Bet365 | ROI at best price |
+|---|---|---|---|---|
+| 2020–2025 (seen) | 2,726 | +0.6% (−3.7, +5.1) | +1.0% (−3.4, +5.6) | +7.7% (+3.1, +12.8) |
+| **2026 Jan–Mar (unseen)** | 151 | **−10.2%** (−29.7, +10.3) | −8.8% (−28.9, +12.7) | −5.3% (−26.5, +16.7) |
+
+It didn't hold up. The only significant number, the best-price ROI, depends on getting the highest odds across all bookmakers, chosen after the fact. That inflates every strategy and isn't reliably available.
+
+### Conclusion
+
+On public data, the ATP and WTA main-tour markets were efficient enough that none of these models found an edge that survived honest testing. The places where an edge is more plausible need data that isn't freely available:
+- **Challenger and ITF matches.** Match data exists, but there's no free historical odds source.
+- **Opening odds and line movement.** Testing whether the model beats the *closing* price requires timestamped odds.
+- **Information the market prices quickly:** injuries, withdrawals, live in-match data.
+
 ### Elo tuning
 
 Parameters are fit on 2010–2019 and scored on 2020–2025. Each idea is kept only if it lowers training log loss.
@@ -64,6 +109,8 @@ uv sync
 uv run pytest
 uv run python -m tennis_edge.models.tune_elo --tour atp   # optional: refit Elo parameters
 uv run python -m tennis_edge.pipeline --tour atp           # features, models, evaluation
+uv run python -m tennis_edge.pipeline --tour wta           # same for WTA
+uv run python -m tennis_edge.eval.segments                 # discovery/validation niche search
 uv run streamlit run app/streamlit_app.py                  # dashboard
 ```
 
@@ -71,5 +118,6 @@ uv run streamlit run app/streamlit_app.py                  # dashboard
 
 - Match data: [Jeff Sackmann / Tennis Abstract](https://github.com/JeffSackmann/tennis_atp), CC BY-NC-SA 4.0. This project is non-commercial. The original repository is no longer online; the data is downloaded from the archival mirror [Aneeshers/tennis-sackmann-archive](https://github.com/Aneeshers/tennis-sackmann-archive).
 - Odds: [tennis-data.co.uk](http://www.tennis-data.co.uk/). The site blocks automated downloads; the 2020–2025 ATP files were taken from the copy in [gmalbert/tennis-predictions](https://github.com/gmalbert/tennis-predictions) and saved to `data/raw/tennis_data/atp_{year}.xlsx`.
+- WTA odds: Kaggle dataset [WTA Tennis 2007–2026 Daily update](https://www.kaggle.com/datasets/dissfya/wta-tennis-2007-2023-daily-update), downloaded automatically.
 
 For analysis and learning only.

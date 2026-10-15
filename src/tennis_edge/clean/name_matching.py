@@ -61,7 +61,8 @@ def attach_odds(matches: pd.DataFrame, odds: pd.DataFrame, window_days: int = 16
     cand = cand.assign(gap=delta.abs()).sort_values("gap")
     cand = cand.drop_duplicates("match_idx").drop_duplicates("odds_idx")
 
-    odds_cols = ["date", "psw", "psl", "b365w", "b365l", "maxw", "maxl", "avgw", "avgl", "comment"]
+    odds_cols = ["date", "psw", "psl", "b365w", "b365l", "maxw", "maxl", "avgw", "avgl",
+                 "oddw", "oddl", "comment"]
     odds_cols = [c for c in odds_cols if c in o.columns]
     joined = m.merge(
         cand[["match_idx", "odds_idx"]].merge(o[["odds_idx", *odds_cols]], on="odds_idx"),

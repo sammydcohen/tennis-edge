@@ -1,0 +1,10 @@
+{
+  "start": 1500.0,
+  "k_scale": 200,
+  "k_offset": 20,
+  "k_shape": 0.4,
+  "surface_weight": 0.35,
+  "slam_k_mult": 1.1,
+  "layoff_days": 45,
+  "layoff_shrink": 0.02
+}
