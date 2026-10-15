@@ -15,6 +15,9 @@ import type { Tracker, Upcoming } from "@/lib/types";
 
 type Filter = "all" | "atp" | "wta";
 
+// Runtime fetches need the base path that next/link adds automatically.
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 function startsIn(iso: string) {
   const mins = Math.round((new Date(iso + "Z").getTime() - Date.now()) / 60000);
   if (mins < 60) return `in ${Math.max(mins, 0)} min`;
@@ -104,14 +107,16 @@ function EmptyState() {
   return (
     <Card className="mt-8">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Radio className="size-5 text-muted-foreground" /> No live odds collected yet</CardTitle>
+        <CardTitle className="flex items-center gap-2"><Radio className="size-5 text-muted-foreground" /> Live odds aren&apos;t published here</CardTitle>
         <CardDescription className="leading-relaxed max-w-2xl">
-          The collector stores odds snapshots from The Odds API a few times a day. Once it has run, upcoming matches
-          appear here with model and market probabilities.
+          The paper-trading system runs on a schedule on my own machine: it snapshots bookmaker odds a few times a day,
+          predicts upcoming matches and grades each pick against the closing price. The odds come from The Odds API,
+          whose terms don&apos;t allow republishing them, so this public build has no live matches. When run locally,
+          this page shows every upcoming ATP and WTA match with model and market probabilities side by side.
         </CardDescription>
       </CardHeader>
       <CardContent className="text-sm grid gap-2">
-        <p className="text-muted-foreground">To start it locally:</p>
+        <p className="text-muted-foreground">To run it yourself (code on GitHub):</p>
         <ol className="list-decimal pl-5 grid gap-1 text-muted-foreground">
           <li>Get a free key at the-odds-api.com and add <code className="font-mono text-foreground">ODDS_API_KEY=…</code> to <code className="font-mono text-foreground">.env</code>.</li>
           <li>Run <code className="font-mono text-foreground">powershell scripts/collect_odds.ps1</code>, or schedule it.</li>
@@ -185,8 +190,8 @@ export function LiveBoard() {
 
   useEffect(() => {
     const bust = `?t=${Date.now()}`;
-    fetch(`/data/upcoming.json${bust}`).then((r) => r.json()).then(setMatches).catch(() => setMatches([]));
-    fetch(`/data/tracker.json${bust}`).then((r) => r.json()).then(setTracker).catch(() => setTracker(null));
+    fetch(`${BASE}/data/upcoming.json${bust}`).then((r) => r.json()).then(setMatches).catch(() => setMatches([]));
+    fetch(`${BASE}/data/tracker.json${bust}`).then((r) => r.json()).then(setTracker).catch(() => setTracker(null));
   }, []);
 
   const shown = useMemo(

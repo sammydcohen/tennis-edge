@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ArrowDown, Database, FlaskConical, LineChart, Scale, Sigma } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -204,7 +205,7 @@ export default function Home() {
               Prices do drift toward the model more often than away, most clearly on Kalshi&apos;s ATP markets. So the model knows
               a little that opening prices don&apos;t. But the drift is about one probability point, while bookmakers charge
               around five, so it can&apos;t be turned into profit. Tracking this live against Pinnacle is the next test, on the{" "}
-              <a href="/live/" className="text-foreground underline underline-offset-4">Live matches</a> page.
+              <Link href="/live/" className="text-foreground underline underline-offset-4">Live matches</Link> page.
             </p>
           </CardContent>
         </Card>

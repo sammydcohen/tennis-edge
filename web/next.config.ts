@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // `next build` emits plain HTML/JS to out/, hostable anywhere.
   output: "export",
   trailingSlash: true,
+  // GitHub Pages serves the site under /tennis-edge; the deploy workflow sets this.
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH ?? "",
   turbopack: {
     rules: {
       "*.css": {
