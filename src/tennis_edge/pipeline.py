@@ -13,7 +13,8 @@ from tennis_edge.betting.vig import proportional
 from tennis_edge.clean.name_matching import attach_odds
 from tennis_edge.config import DB_PATH
 from tennis_edge.eval.metrics import accuracy, brier, log_loss, symmetric
-from tennis_edge.features.elo import compute_elo
+from tennis_edge.features.elo import EloParams, compute_elo
+from tennis_edge.models.tune_elo import PARAMS_PATH
 from tennis_edge.ingest import odds_history, sackmann
 
 ODDS_COLS = ["psw", "psl", "b365w", "b365l", "maxw", "maxl", "avgw", "avgl"]
@@ -22,7 +23,10 @@ ODDS_COLS = ["psw", "psl", "b365w", "b365l", "maxw", "maxl", "avgw", "avgl"]
 def build(tour: str, start: int, end: int, elo_burn_in: int = 1990) -> pd.DataFrame:
     # Elo needs history before the evaluation window to settle.
     matches = sackmann.load(tour, range(min(elo_burn_in, start), end + 1))
-    matches = compute_elo(matches)
+    params_path = PARAMS_PATH.with_name(PARAMS_PATH.name.format(tour=tour))
+    params = EloParams.load(params_path) if params_path.exists() else EloParams()
+    print(f"Elo params: {params}")
+    matches = compute_elo(matches, params)
     matches = matches[matches["tourney_date"].dt.year >= start]
     odds = odds_history.load(tour, range(max(start, 2001), end + 1))
     if odds.empty:

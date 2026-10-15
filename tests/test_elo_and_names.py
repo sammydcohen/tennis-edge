@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from tennis_edge.clean.name_matching import attach_odds, full_name_keys, odds_name_key
-from tennis_edge.features.elo import compute_elo, expected
+from tennis_edge.features.elo import EloParams, compute_elo, expected
 
 
 def _matches(rows):
@@ -36,6 +36,37 @@ def test_elo_unchanged_by_future_rows():
     a = compute_elo(_matches(base))
     b = compute_elo(_matches(base + future))
     assert a.loc[0, "p_elo_winner"] == b.loc[0, "p_elo_winner"]
+
+
+def test_slam_weighting_moves_ratings_more():
+    rows = [("atp", "t1", "2024-01-01", 1, "F", "Hard", 1, "A", 2, "B")]
+    normal = compute_elo(_matches(rows).assign(tourney_level="G"))
+    boosted = compute_elo(_matches(rows + rows).assign(tourney_level="G"),
+                          EloParams(slam_k_mult=1.5))
+    base = compute_elo(_matches(rows + rows).assign(tourney_level="G"))
+    # Second match sees the rating after the first; bigger K -> bigger jump.
+    assert boosted.loc[1, "w_elo"] - 1500 == pytest.approx(1.5 * (base.loc[1, "w_elo"] - 1500))
+    assert normal.loc[0, "w_elo"] == 1500
+
+
+def test_layoff_pulls_rating_toward_start():
+    rows = [
+        ("atp", "t1", "2024-01-01", 1, "F", "Hard", 1, "A", 2, "B"),
+        ("atp", "t2", "2024-01-08", 1, "F", "Hard", 1, "A", 3, "C"),
+        ("atp", "t3", "2024-09-01", 1, "F", "Hard", 1, "A", 4, "D"),
+    ]
+    plain = compute_elo(_matches(rows))
+    decayed = compute_elo(_matches(rows), EloParams(layoff_days=60, layoff_shrink=0.1))
+    # No layoff between match 1 and 2: identical.
+    assert decayed.loc[1, "w_elo"] == plain.loc[1, "w_elo"]
+    # ~8 month layoff before match 3: A's rating shrinks toward 1500 but stays above it.
+    assert 1500 < decayed.loc[2, "w_elo"] < plain.loc[2, "w_elo"]
+
+
+def test_params_roundtrip(tmp_path):
+    p = EloParams(k_scale=300, layoff_shrink=0.05)
+    p.save(tmp_path / "p.json")
+    assert EloParams.load(tmp_path / "p.json") == p
 
 
 @pytest.mark.parametrize("odds_name,full_name", [
