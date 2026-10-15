@@ -1,8 +1,14 @@
 # Tennis Edge
 
-**Can a model beat the tennis betting market?** This project builds three ATP/WTA match-prediction models, tests them against bookmaker odds as strictly as possible, and runs a live paper-trading system that grades its own picks. A Next.js site (`web/`) presents the findings.
+**Can a model beat the tennis betting market?** This project builds three ATP/WTA match-prediction models, tests them against bookmaker odds as strictly as possible, and runs a live paper-trading system that grades its own picks.
 
-**Short answer: not on public data.** The best model closes about 40% of the gap between a plain rating system and Pinnacle's closing odds, but no betting strategy survives testing on unseen years.
+### 🎾 [View the live site →](https://sammydcohen.github.io/tennis-edge/)
+
+[![Tennis Edge findings page](docs/screenshot.png)](https://sammydcohen.github.io/tennis-edge/)
+
+**Short answer: not on public data.** The best model (LightGBM, 66% accuracy) closes 44% of the gap between a plain Elo rating and Pinnacle's closing odds, but no betting strategy survives testing on unseen years: 0 of 666 betting niches held up out of sample.
+
+**Stack:** Python (pandas, LightGBM, scikit-learn, DuckDB, pytest) · Next.js 16, TypeScript, Tailwind, shadcn/ui, Recharts · GitHub Actions → GitHub Pages
 
 ## What's inside
 
@@ -14,7 +20,7 @@
 | LightGBM | Both models + rank, age, form, fatigue, head-to-head; trained walk-forward (each year predicted only from earlier years) | `features/form.py`, `models/gbm.py` |
 | Market tests | Margin removal, backtests with bootstrap CIs, discovery/validation niche search, closing-line-value tests | `betting/`, `eval/` |
 | Live system | Odds snapshots from The Odds API, predictions for upcoming matches, picks logged and graded by closing line value | `ingest/odds_live.py`, `models/predict.py`, `betting/clv_tracker.py` |
-| Website | Static Next.js 16 + shadcn/ui + Recharts site built from exported JSON | `export.py`, `web/` |
+| Website | Static Next.js 16 + shadcn/ui + Recharts site built from exported JSON, deployed to GitHub Pages by GitHub Actions on every push | `export.py`, `web/`, `.github/workflows/` |
 
 ## Results
 
