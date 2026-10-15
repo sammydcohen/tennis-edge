@@ -6,4 +6,15 @@ __pycache__/
 data/raw/
 data/*.duckdb
 data/*.duckdb.wal
+# Secrets: never commit keys or credential files
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+kaggle.json
+data/logs/
+data/site_json_tmp/
+# Live odds outputs are derived from The Odds API, whose terms restrict redistribution.
+web/public/data/upcoming.json
+web/public/data/tracker.json

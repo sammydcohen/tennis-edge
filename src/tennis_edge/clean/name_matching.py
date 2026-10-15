@@ -17,22 +17,29 @@ def _norm(s: str) -> str:
 
 
 def odds_name_key(name: str) -> str:
-    """'Del Potro J.M.' -> 'delpotro_j'."""
+    """'Del Potro J.M.' -> 'delpotro_j', 'Zhang Zh.' -> 'zhang_z'."""
     name = name.strip()
-    m = re.match(r"^(.*?)\s+((?:[A-Za-z](?:[.\-\s]+|$))+)$", name)
+    m = re.match(r"^(.*?)\s+((?:(?:[A-Za-z]{1,2}\.|[A-Za-z](?=[\s\-]|$))[\s\-]*)+)$", name)
     if not m:
         return _norm(name)
     surname, initials = m.group(1), m.group(2)
     return f"{_norm(surname)}_{_norm(initials)[:1]}"
 
 
-def full_name_keys(name: str) -> list[str]:
-    """'Juan Martin del Potro' -> ['martindelpotro_j', 'delpotro_j', 'potro_j']."""
+def full_name_keys(name: str, shortened: bool = True) -> list[str]:
+    """'Juan Martin del Potro' -> ['martindelpotro_j', 'delpotro_j', 'potro_j', 'martin_j'].
+
+    The last key (only with `shortened`) covers sources that cut a double surname down to
+    its first part ('Mpetshi G.' for Giovanni Mpetshi Perricard).
+    """
     tokens = name.replace("-", " ").split()
     if len(tokens) < 2:
         return [_norm(name)]
     initial = _norm(tokens[0])[:1]
-    return [f"{_norm(''.join(tokens[k:]))}_{initial}" for k in range(1, len(tokens))]
+    keys = [f"{_norm(''.join(tokens[k:]))}_{initial}" for k in range(1, len(tokens))]
+    if shortened and len(tokens) > 2:
+        keys.append(f"{_norm(tokens[1])}_{initial}")
+    return keys
 
 
 def _explode_keys(df: pd.DataFrame, col: str, out: str) -> pd.DataFrame:

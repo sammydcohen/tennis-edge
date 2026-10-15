@@ -75,6 +75,9 @@ def test_params_roundtrip(tmp_path):
     ("Auger-Aliassime F.", "Felix Auger-Aliassime"),
     ("Carreno Busta P.", "Pablo Carreno Busta"),
     ("Monfils G.", "Gaël Monfils"),
+    ("Mpetshi G.", "Giovanni Mpetshi Perricard"),
+    ("Zhang Zh.", "Zhizhen Zhang"),
+    ("O Connell C.", "Christopher O Connell"),
 ])
 def test_name_keys(odds_name, full_name):
     assert odds_name_key(odds_name) in full_name_keys(full_name)
@@ -92,3 +95,18 @@ def test_attach_odds_respects_date_window():
     out = attach_odds(m, odds)
     assert out["odds_matched"].tolist() == [False, True]
     assert out.loc[1, "psw"] == 1.9
+
+
+def test_player_index_prefers_full_surname_and_activity():
+    from tennis_edge.ingest.results_bridge import player_index
+
+    m = pd.DataFrame({
+        "tourney_date": pd.to_datetime(["2024-01-01"] * 3),
+        "winner_id": [1, 1, 3], "winner_name": ["Juan Martin", "Juan Martin", "Novak Djokovic"],
+        "loser_id": [2, 2, 2], "loser_name": ["Juan Martin del Potro"] * 3,
+    })
+    idx = player_index(m)
+    # 'martin_j' is del Potro's shortened key but Juan Martin's real surname key: real wins.
+    assert idx["martin_j"] == ("1", "Juan Martin")
+    assert idx["delpotro_j"] == ("2", "Juan Martin del Potro")
+    assert idx["djokovic_n"] == ("3", "Novak Djokovic")

@@ -60,6 +60,19 @@ def build_dataset(df: pd.DataFrame, seed: int = 0) -> tuple[pd.DataFrame, np.nda
     return X, (~flipped).astype(int), flipped
 
 
+def fit_predict(X, y, flipped, train: np.ndarray, test: np.ndarray):
+    """Train on `train` rows, return (p_gbm, p_markov_cal) for the winner-column player
+    of each `test` row, plus the fitted booster."""
+    booster = lgb.train(LGB_PARAMS, lgb.Dataset(X[train], y[train]), NUM_ROUNDS)
+    p_a = booster.predict(X[test])
+    p_gbm = np.where(flipped[test], 1 - p_a, p_a)
+
+    platt = LogisticRegression(C=1e6).fit(X.loc[train, ["logit_p_markov"]], y[train])
+    p_a = platt.predict_proba(X.loc[test, ["logit_p_markov"]])[:, 1]
+    p_markov_cal = np.where(flipped[test], 1 - p_a, p_a)
+    return p_gbm, p_markov_cal, booster
+
+
 def walk_forward(df: pd.DataFrame, test_years: range, train_from: int = 2000):
     """Predict each test year with models trained on [train_from, year).
 
@@ -75,13 +88,7 @@ def walk_forward(df: pd.DataFrame, test_years: range, train_from: int = 2000):
     for test_year in test_years:
         train = (year >= train_from) & (year < test_year)
         test = year == test_year
-        booster = lgb.train(LGB_PARAMS, lgb.Dataset(X[train], y[train]), NUM_ROUNDS)
-        p_a = booster.predict(X[test])
-        p_gbm[test] = np.where(flipped[test], 1 - p_a, p_a)
-
-        platt = LogisticRegression(C=1e6).fit(X.loc[train, ["logit_p_markov"]], y[train])
-        p_a = platt.predict_proba(X.loc[test, ["logit_p_markov"]])[:, 1]
-        p_markov_cal[test] = np.where(flipped[test], 1 - p_a, p_a)
+        p_gbm[test], p_markov_cal[test], booster = fit_predict(X, y, flipped, train, test)
 
     importance = pd.Series(booster.feature_importance("gain"), index=X.columns)
     return p_gbm, p_markov_cal, importance.sort_values(ascending=False)
